@@ -1,25 +1,32 @@
 package main
 
 import (
-    "context"
-    "log"
-    pb "commons/api"
-    "google.golang.org/grpc"
+	pb "commons/api"
+	"context"
+
+	"log"
+
+	"google.golang.org/grpc"
 )
 
 type grpcHandler struct {
-    pb.UnimplementedOrderServiceServer
+	pb.UnimplementedOrderServiceServer
+
+    service OrdersService
 }
 
-func NewGRPCHandler(grpcServer *grpc.Server) {
-    handler := &grpcHandler{}
-    pb.RegisterOrderServiceServer(grpcServer, handler)
+func NewGRPCHandler(grpcServer *grpc.Server, service OrdersService) {
+	handler := &grpcHandler{
+        service: service,
+    }
+	pb.RegisterOrderServiceServer(grpcServer, handler)
 }
 
 func (h *grpcHandler) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.Order, error) {
-    log.Println("New order received!")
-    o := &pb.Order{
-        ID: "42",
-    }
-    return o, nil
+
+	log.Printf("New order received! Order %v", req)
+	o := &pb.Order{
+		ID: "42",
+	}
+	return o, nil
 }

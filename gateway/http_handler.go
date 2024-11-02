@@ -3,8 +3,12 @@ package main
 import (
 	common "commons"
 	pb "commons/api"
+	"errors"
 	"log"
 	"net/http"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type handler struct {
@@ -31,15 +35,48 @@ func (h *handler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    if err := validateItems(items); err != nil {
+        log.Printf("Error validating items: %v", err)
+
+        common.WriteError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+
     resp, err := h.client.CreateOrder(r.Context(), &pb.CreateOrderRequest{
         CustomerID: customerID,
         Items:      items,
     })
-    if err != nil {
+
+    rStatus:=status.Convert(err)
+    if rStatus != nil {
+        if rStatus.Code() != codes.InvalidArgument{
+            common.WriteError(w, http.StatusBadRequest, rStatus.Message())
+            return
+        }
+
         log.Printf("Error calling CreateOrder: %v", err)
         common.WriteError(w, http.StatusInternalServerError, err.Error())
         return
     }
 
     common.WriteJSON(w, http.StatusOK, resp)
+}
+
+func validateItems(items []*pb.ItemsWithQuantity) error {
+   if len(items) == 0 {
+       return common.ErrNoItems}
+
+    for _, item := range items {
+        if item.ID == "" {
+            return errors.New("item ID is required")
+        }
+        if item.Quantity <= 0 {
+            return errors.New("item quantity must be greater than 0")
+        }
+    }
+
+
+
+    return nil
 }
